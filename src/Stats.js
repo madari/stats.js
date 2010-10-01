@@ -18,7 +18,7 @@
  *
  */
 
-var Stats = function(name, period, options) {
+function Stats(name, period, options) {
 	options = options || {};
 	this.palette = options.palette || Stats.Palettes.Grayscale;
 	this.width = options.width || 74;
@@ -186,7 +186,7 @@ Stats.Builtin = {
 		var s = new Stats('mem', 1000, { palette: Stats.Palettes.Red, mode: Stats.Modes.Single });
 		s._update = s.update;
 		s.update = function() {
-			if (new Date().getTime() > this.lastRender + this.period) {
+			if (new Date().getTime() > s.lastRender + s.period) {
 				s._update(webkitPerformance.memory.usedJSHeapSize * 0.000000954);
 			}
 		}

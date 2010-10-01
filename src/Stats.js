@@ -24,6 +24,7 @@ var Stats = function(name, period, options) {
 	this.width = options.width || 74;
 	this.height = options.height || 30;
 
+	this.mode = options.mode || Stats.Modes.Average;
 	this.name = name;
 	this.count = this.lastUpdate = this.lastRender = this.max = this.accumulated = 0;
 	this.min = 0xFFFFFF;
@@ -107,15 +108,29 @@ Stats.prototype.update = function(value) {
 
 	if (this.lastUpdate > 0) {
 		if (this.period > 0) {
-			this.accumulated += value;
+			switch (this.mode) {
+				case Stats.Modes.Average:
+					this.count++;
+
+				case Stats.Modes.Cumulative:
+					this.accumulated += value;
+					break;
+
+				default:
+					this.accumulated = value;
+			}
 			if (now > this.lastRender + this.period) {
 				value = this.accumulated;
 				this.accumulated = 0;
+				if (this.count > 0) {
+					value /= this.count;
+				}
+				this.count = 0;
 			} else {
 				value = null;
 			}
 		} else {
-			value = now - this.lastUpdate;
+			value = this.mode == Stats.Modes.Interval ? now - this.lastUpdate : value;
 		}
 	} else {
 		this.lastRender = now;
@@ -143,7 +158,14 @@ Stats.prototype.update = function(value) {
 };
 
 Stats.FormatValue = function(value) {
-	return value >= 1000 ? Math.round(value / 100) / 10 + 'k' : value;
+	return value >= 1000 ? Math.round(value / 100) / 10 + 'k' : Math.round(value);
+};
+
+Stats.Modes = {
+	Average: 0,
+	Cumulative: 1,
+	Single: 2,
+	Interval: 3
 };
 
 Stats.Palettes = {
@@ -155,10 +177,19 @@ Stats.Palettes = {
 
 Stats.Builtin = {
 	FPS: function() {
-		return new Stats('fps', 1000, { palette: Stats.Palettes.Cyan });
+		return new Stats('fps', 1000, { palette: Stats.Palettes.Cyan, mode: Stats.Modes.Cumulative });
 	},
 	MS: function() {
-		return new Stats('ms', 0, { palette: Stats.Palettes.Green });
+		return new Stats('ms', 0, { palette: Stats.Palettes.Green, mode: Stats.Modes.Interval });
+	},
+	Mem: function() {
+		var s = new Stats('mem', 1000, { palette: Stats.Palettes.Red, mode: Stats.Modes.Single });
+		s._update = s.update;
+		s.update = function() {
+			if (new Date().getTime() > this.lastRender + this.period) {
+				s._update(webkitPerformance.memory.usedJSHeapSize * 0.000000954);
+			}
+		}
+		return s;
 	}
 };
-
